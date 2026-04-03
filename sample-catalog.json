@@ -1,0 +1,41 @@
+{
+  "units": [
+    {
+      "unit_id": 2,
+      "unit_name": "Unit-2 Mechanics",
+      "simulations": [
+        {
+          "name": "Rocket Motion",
+          "path": "Rocket_sim.html",
+          "description": "Simulation of rocket thrust and variable mass."
+        },
+        {
+          "name": "Projectile Motion V3",
+          "path": "projectile V3.html",
+          "description": "Trajectory and range calculation for projectiles."
+        },
+        {
+          "name": "Collision Dynamics",
+          "path": "Collision.html",
+          "description": "Visualizing elastic and inelastic collisions."
+        }
+      ]
+    },
+    {
+      "unit_id": 4,
+      "unit_name": "Unit-4 Waves & Vibrations",
+      "simulations": [
+        {
+          "name": "Helix Spring Practical",
+          "path": "Helix Spring practical V2.html",
+          "description": "Hooke's Law and spring constant practical."
+        },
+        {
+          "name": "Types of Vibration",
+          "path": "Types of Vibration V2.html",
+          "description": "Free, forced, and damped vibration modes."
+        }
+      ]
+    }
+  ]
+}
