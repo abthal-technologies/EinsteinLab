@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Unit-2 Mechanics-Collision</title>
+  <style>
+    :root { --neon: #00f7ff; --gold: #ffcc00; --bg: #05050a; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: #e0f7ff; font-family: 'Segoe UI', sans-serif; padding: 10px; padding-bottom: 120px; overflow-x: hidden; }
+    
+    header { text-align: center; margin-bottom: 10px; border-bottom: 1px solid var(--neon); }
+    header h1 { font-size: 1.1rem; color: #00ffcc; margin: 0; }
+    header h2 { font-size: 0.8rem; color: var(--gold); font-weight: normal; margin-top: 2px; }
+
+    .viewport { position: relative; width: 100%; height: 260px; background: #000; border: 2px solid #1a3a5a; border-radius: 8px; margin-bottom: 5px; overflow: hidden; }
+    #simCanvas { width: 100%; height: 100%; display: block; }
+    
+    .graph-container { display: none; width: 100%; height: 320px; background: #080810; border: 1px solid #333; border-radius: 8px; margin-top: 10px; padding: 10px; position: relative; }
+    #graphCanvas { width: 100%; height: 100%; display: block; }
+
+    .hud { position: absolute; top: 8px; left: 8px; font-family: monospace; font-size: 0.7rem; color: var(--gold); pointer-events: none; background: rgba(0,0,0,0.8); padding: 5px; border-radius: 4px; border: 0.5px solid #444; }
+
+    .panel { background: #111827; border-radius: 10px; padding: 12px; border: 1px solid #374151; margin-top: 10px; }
+    .grid-ctrl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    label { font-size: 0.65rem; color: #9ca3af; }
+    input, select { width: 100%; background: #000; border: 1px solid #4b5563; color: #fff; padding: 5px; border-radius: 4px; font-size: 0.75rem; }
+    
+    /* Standardized Button Grid */
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    button { 
+      padding: 15px 5px; 
+      border: none; 
+      border-radius: 4px; 
+      font-weight: bold; 
+      cursor: pointer; 
+      font-size: 0.7rem; 
+      text-transform: uppercase;
+      height: 50px; /* Fixed height for all buttons */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .bg-green { background: #10b981; color: #000; }
+    .bg-red { background: #ef4444; color: #fff; }
+    .bg-blue { background: #3b82f6; color: #fff; }
+
+    .footer { position: fixed; bottom: 0; left: 0; width: 100%; padding: 10px; background: rgba(5,5,10,0.98); border-top: 1px solid #1a3a5a; z-index: 1000; }
+    .footer-content { display: flex; justify-content: space-between; align-items: center; }
+    .contact-info { font-size: 0.75rem; color: #00ffcc; font-weight: bold; text-align: left; }
+    .brand-info { font-size: 0.6rem; color: rgba(255, 255, 255, 0.4); text-align: right; line-height: 1.2; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Unit-2 Mechanics-Collision</h1>
+    <h2>Momentum Conservation (10mm Spheres)</h2>
+  </header>
+
+  <div class="viewport">
+    <canvas id="simCanvas"></canvas>
+    <div id="hud" class="hud">Σp: 0.00 kg·m/s</div>
+  </div>
+
+  <div id="graphUI" class="graph-container">
+    <div style="text-align: center; color: var(--neon); font-size: 0.7rem; margin-bottom: 5px; font-weight:bold;">MOMENTUM p (kg·m/s) vs TIME t (s)</div>
+    <canvas id="graphCanvas"></canvas>
+    <div style="display:flex; justify-content:center; gap:15px; font-size:0.6rem; margin-top:5px;">
+        <span style="color:#00f7ff;">● p₁</span>
+        <span style="color:#ffcc00;">● p₂</span>
+        <span style="color:#ffffff;">-- Σp</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="grid-ctrl">
+      <div><label>Mass 1: <b id="m1Disp">1.0</b>kg</label><input type="range" id="m1" min="0.5" max="5.0" value="1.0" step="0.5"></div>
+      <div><label>Mass 2: <b id="m2Disp">2.0</b>kg</label><input type="range" id="m2" min="0.5" max="5.0" value="2.0" step="0.5"></div>
+      <div><label>u₁ (m/s): <b id="u1Disp">6</b></label><input type="range" id="u1" min="-15" max="15" value="6"></div>
+      <div><label>u₂ (m/s): <b id="u2Disp">0</b></label><input type="range" id="u2" min="-15" max="15" value="0"></div>
+      
+      <div>
+        <label>Collision Type</label>
+        <select id="eVal">
+          <option value="1.0">Elastic (e=1.0)</option>
+          <option value="0.5">Inelastic (e=0.5)</option>
+          <option value="0.0">Perfectly Inelastic (e=0.0)</option>
+        </select>
+      </div>
+      <div>
+        <label>Friction (μ): <b id="muDisp">0.00</b></label>
+        <input type="range" id="mu" min="0" max="0.5" value="0" step="0.01">
+      </div>
+    </div>
+    
+    <div class="btn-row">
+      <button onclick="fireBalls()" class="bg-green">Start Sim</button>
+      <button onclick="resetSim()" class="bg-red">Reset All</button>
+      <button onclick="toggleGraph()" class="bg-blue" id="graphBtn">View Graph</button>
+      <button onclick="alert('Simulation values captured!')" class="bg-blue">Capture Data</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-content">
+      <div class="contact-info">For Any Issues on the Simulation<br>Contact Us on WhatsApp: 0764738601</div>
+      <div class="brand-info">Built by Abthal Technologies<br>Akkaraipattu, Ampara, Srilanka</div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("simCanvas"), ctx = canvas.getContext("2d");
+    const gCanvas = document.getElementById("graphCanvas"), gCtx = gCanvas.getContext("2d");
+    let running = false, anim;
+    let momentumHistory = [];
+
+    let b1 = { x: 0, r: 10, v: 0, m: 1, col: '#00f7ff', startX: 0 };
+    let b2 = { x: 0, r: 10, v: 0, m: 2, col: '#ffcc00', startX: 0 };
+    const floorY = 180;
+
+    function resize() {
+      canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+      gCanvas.width = gCanvas.offsetWidth; gCanvas.height = gCanvas.offsetHeight;
+      const centerX = canvas.width / 2;
+      b1.startX = centerX - 50; b2.startX = centerX + 50;
+      resetSim();
+    }
+
+    function draw() {
+      ctx.clearRect(0,0,canvas.width, canvas.height);
+      ctx.strokeStyle = "#1a3a5a"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, floorY); ctx.lineTo(canvas.width, floorY); ctx.stroke();
+      
+      ctx.setLineDash([5, 5]); ctx.strokeStyle = "rgba(255,255,255,0.2)";
+      ctx.beginPath(); ctx.moveTo(b1.startX, floorY); ctx.lineTo(b1.startX, floorY - 30); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(b2.startX, floorY); ctx.lineTo(b2.startX, floorY - 30); ctx.stroke();
+      ctx.setLineDash([]);
+
+      [b1, b2].forEach(b => {
+        ctx.fillStyle = b.col; ctx.beginPath(); ctx.arc(b.x, floorY - b.r, b.r, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.fillStyle = "#fff"; ctx.font = "bold 10px monospace";
+        ctx.fillText(`${b.v.toFixed(2)} m/s`, b.x - 20, floorY - b.r*2 - 20);
+        if(Math.abs(b.v) > 0.001) {
+            ctx.strokeStyle = b.col; ctx.beginPath();
+            ctx.moveTo(b.x, floorY - b.r*2 - 12); ctx.lineTo(b.x + b.v * 10, floorY - b.r*2 - 12); ctx.stroke();
+        }
+      });
+    }
+
+    function drawGraph() {
+      gCtx.clearRect(0,0,gCanvas.width, gCanvas.height);
+      const pad = {l:45, r:15, t:25, b:35}, w = gCanvas.width - pad.l - pad.r, h = gCanvas.height - pad.t - pad.b;
+      const zeroY = pad.t + h/2;
+
+      gCtx.strokeStyle = "#1a1a2e"; gCtx.lineWidth = 1;
+      for(let i=0; i<=10; i++){
+          let x = pad.l + i*(w/10); gCtx.beginPath(); gCtx.moveTo(x, pad.t); gCtx.lineTo(x, pad.t+h); gCtx.stroke();
+      }
+      
+      const maxVal = Math.max(...momentumHistory.flatMap(d => [Math.abs(d.p1), Math.abs(d.p2), Math.abs(d.pt)]), 10) * 1.2;
+
+      gCtx.strokeStyle = "#444"; gCtx.beginPath(); gCtx.moveTo(pad.l, zeroY); gCtx.lineTo(pad.l+w, zeroY); gCtx.stroke();
+      
+      gCtx.fillStyle = "#fff"; gCtx.font = "9px Arial";
+      gCtx.fillText(maxVal.toFixed(1), 5, pad.t + 5);
+      gCtx.fillText("-" + maxVal.toFixed(1), 5, pad.t + h + 5);
+      gCtx.fillText("0.0", 5, zeroY + 4);
+
+      if(momentumHistory.length < 2) return;
+
+      function plotLine(key, color, dash=[]) {
+          gCtx.strokeStyle = color; gCtx.setLineDash(dash); gCtx.lineWidth = 2;
+          gCtx.beginPath();
+          momentumHistory.forEach((d, i) => {
+              const gx = pad.l + (i / 400) * w;
+              const gy = zeroY - (d[key] / maxVal) * (h/2);
+              if(i === 0) gCtx.moveTo(gx, gy); else gCtx.lineTo(gx, gy);
+          });
+          gCtx.stroke();
+      }
+      plotLine('p1', '#00f7ff'); plotLine('p2', '#ffcc00'); plotLine('pt', '#ffffff', [4, 4]);
+    }
+
+    function fireBalls() {
+      if(running) return;
+      momentumHistory = [];
+      b1.m = parseFloat(document.getElementById("m1").value);
+      b2.m = parseFloat(document.getElementById("m2").value);
+      b1.v = parseFloat(document.getElementById("u1").value);
+      b2.v = parseFloat(document.getElementById("u2").value);
+      b1.x = b1.startX; b2.x = b2.startX;
+      running = true; loop();
+    }
+
+    function loop() {
+      if(!running) return;
+      const dt = 0.002;
+      const mu = parseFloat(document.getElementById("mu").value);
+      const e = parseFloat(document.getElementById("eVal").value);
+
+      [b1, b2].forEach(b => {
+        if(mu > 0 && Math.abs(b.v) > 0.001) b.v -= Math.sign(b.v) * mu * 9.8 * dt * 50;
+        b.x += b.v * 250 * dt;
+      });
+
+      if(b1.x + b1.r >= b2.x - b2.r) {
+        b1.x = b2.x - b2.r - b1.r;
+        let u1 = b1.v, u2 = b2.v;
+        b1.v = ((b1.m - e*b2.m)*u1 + b2.m*(1+e)*u2) / (b1.m + b2.m);
+        b2.v = ((b2.m - e*b1.m)*u2 + b1.m*(1+e)*u1) / (b1.m + b2.m);
+        if(e === 0) { let vf = (b1.m*u1 + b2.m*u2)/(b1.m + b2.m); b1.v = b2.v = vf; }
+      }
+
+      momentumHistory.push({ p1: b1.m*b1.v, p2: b2.m*b2.v, pt: (b1.m*b1.v + b2.m*b2.v) });
+      if(momentumHistory.length > 400) momentumHistory.shift();
+
+      draw();
+      if(document.getElementById("graphUI").style.display === "block") drawGraph();
+      document.getElementById("hud").innerHTML = `Σp: ${(b1.m*b1.v + b2.m*b2.v).toFixed(2)} kg·m/s`;
+
+      if(b1.x < -250 || b2.x > canvas.width + 250) running = false;
+      anim = requestAnimationFrame(loop);
+    }
+
+    function toggleGraph() {
+      const g = document.getElementById("graphUI");
+      const btn = document.getElementById("graphBtn");
+      if(g.style.display === "block") {
+          g.style.display = "none";
+          btn.innerText = "View Graph";
+      } else {
+          g.style.display = "block";
+          btn.innerText = "Hide Graph";
+          gCanvas.width = gCanvas.offsetWidth;
+          gCanvas.height = gCanvas.offsetHeight;
+          drawGraph();
+      }
+    }
+
+    function resetSim() {
+      running = false; cancelAnimationFrame(anim);
+      momentumHistory = [];
+      const centerX = canvas.width / 2;
+      b1.x = b1.startX; b2.x = b2.startX; b1.v = 0; b2.v = 0;
+      draw();
+      if(document.getElementById("graphUI").style.display === "block") drawGraph();
+      document.getElementById("hud").innerHTML = "Σp: 0.00 kg·m/s";
+    }
+
+    document.getElementById('m1').oninput = function() { document.getElementById('m1Disp').innerText = this.value; };
+    document.getElementById('m2').oninput = function() { document.getElementById('m2Disp').innerText = this.value; };
+    document.getElementById('u1').oninput = function() { document.getElementById('u1Disp').innerText = this.value; };
+    document.getElementById('u2').oninput = function() { document.getElementById('u2Disp').innerText = this.value; };
+    document.getElementById('mu').oninput = function() { document.getElementById('muDisp').innerText = this.value; };
+
+    window.onload = resize;
+    window.onresize = resize;
+  </script>
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Unit-3 Waves and Oscillations</title>
+  <style>
+    :root { --neon: #00f7ff; --gold: #ffcc00; --bg: #05050a; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: #e0f7ff; font-family: 'Segoe UI', sans-serif; padding: 10px; padding-bottom: 120px; }
+    
+    header { text-align: center; margin-bottom: 10px; border-bottom: 1px solid var(--neon); }
+    header h1 { font-size: 1.1rem; color: #00ffcc; margin: 0; }
+    header h2 { font-size: 0.8rem; color: var(--gold); font-weight: normal; margin-top: 2px; }
+
+    .viewport { position: relative; width: 100%; height: 580px; background: #000; border: 2px solid #1a3a5a; border-radius: 8px; margin-bottom: 5px; overflow: hidden; }
+    #oscCanvas { width: 100%; height: 100%; }
+    
+    /* Optimized Graph Wrapper to ensure visibility */
+    #graphWrapper { display: none; width: 100%; height: 320px; background: #080810; border: 1px solid #333; border-radius: 8px; margin-bottom: 10px; padding: 15px; position: relative; z-index: 5; }
+    #graphCanvas { width: 100%; height: 100%; display: block; background: transparent; }
+
+    .hud { position: absolute; top: 8px; left: 8px; font-family: monospace; font-size: 0.7rem; color: var(--gold); pointer-events: none; background: rgba(0,0,0,0.7); padding: 5px; border-radius: 4px; border: 0.5px solid #333; }
+
+    .panel { background: #111827; border-radius: 10px; padding: 12px; border: 1px solid #374151; }
+    .grid-ctrl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    label { font-size: 0.65rem; color: #9ca3af; }
+    input, select { width: 100%; background: #000; border: 1px solid #4b5563; color: #fff; padding: 5px; border-radius: 4px; font-size: 0.75rem; }
+    
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-top: 10px; }
+    button { padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.7rem; text-transform: uppercase;}
+    .bg-green { background: #10b981; color: #000; }
+    .bg-blue { background: #3b82f6; color: #fff; }
+    .bg-red { background: #ef4444; color: #fff; }
+    .bg-gold { background: var(--gold); color: #000; }
+    .bg-purple { background: #8b5cf6; color: #fff; }
+
+    .footer { position: fixed; bottom: 0; left: 0; width: 100%; padding: 10px; background: rgba(5,5,10,0.98); border-top: 1px solid #1a3a5a; z-index: 1000; }
+    .footer-content { display: flex; justify-content: space-between; align-items: center; }
+    .contact-info { font-size: 0.75rem; color: #00ffcc; font-weight: bold; text-align: left; }
+    .brand-info { font-size: 0.6rem; color: rgba(255, 255, 255, 0.4); text-align: right; line-height: 1.2; }
+
+    #calcModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; padding: 20px; }
+    .modal-box { background: #1f2937; padding: 20px; border-radius: 12px; border: 1px solid var(--neon); max-height: 85vh; overflow-y: auto; }
+    
+    table { width: 100%; border-collapse: collapse; font-size: 0.7rem; color: #fff; margin-top: 10px; background: #000; }
+    th, td { border: 1px solid #333; padding: 6px; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Unit-3 Waves and Oscillations</h1>
+    <h2>Helix Spring Practical (Long Spring Setup)</h2>
+  </header>
+
+  <div class="viewport">
+    <canvas id="oscCanvas"></canvas>
+    <div id="hud" class="hud">READY</div>
+  </div>
+
+  <div id="graphWrapper">
+    <div style="text-align: center; color: var(--neon); font-size: 0.75rem; margin-bottom: 5px; font-weight:bold;">Verification: T² (s²) vs Mass m (g)</div>
+    <canvas id="graphCanvas"></canvas>
+    <div id="gradientLabel" style="text-align: right; color: var(--gold); font-size: 0.75rem; margin-top: 5px; font-weight: bold;"></div>
+  </div>
+
+  <div class="panel">
+    <div class="grid-ctrl">
+      <div><label>Mass (m): <b id="massDisp">100</b>g</label><input type="range" id="mass" min="50" max="500" value="100" step="50"></div>
+      <div><label>Spring Constant (k): <b id="kDisp">6</b>N/m</label><input type="range" id="kConst" min="3" max="20" value="6"></div>
+      <div><label>Initial Pull: <b id="ampDisp">60</b>mm</label><input type="range" id="amp" min="10" max="150" value="60"></div>
+      <div><label>Oscillation View</label>
+        <select id="speedAdj">
+          <option value="0.003">ULTRA SLOW MOTION</option>
+          <option value="0.012" selected>Slow Motion</option>
+          <option value="0.04">Real Time</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="btn-row">
+      <button onclick="startOscillation()" class="bg-green">Release</button>
+      <button onclick="toggleGraph()" class="bg-blue">Graph Sheet</button>
+      <button onclick="resetLab()" class="bg-red">Reset</button>
+    </div>
+    <button onclick="recordData()" class="bg-gold" style="width:100%; margin-top:8px;">Add to Table & Plot</button>
+    <button id="calcBtn" onclick="showGradientCalc()" class="bg-purple" style="width:100%; margin-top:8px; display:none;">View Gradient Calculation</button>
+  </div>
+
+  <div style="margin-top:10px; padding-bottom:30px;">
+    <table>
+      <thead>
+        <tr><th>m (g)</th><th>T₁₀ (s)</th><th>T (s)</th><th>T² (s²)</th></tr>
+      </thead>
+      <tbody id="dataTableBody"></tbody>
+    </table>
+  </div>
+
+  <div id="calcModal">
+    <div class="modal-box">
+      <h2 style="color:var(--gold)">Gradient & Constant Analysis</h2>
+      <div id="calcLog"></div>
+      <button onclick="document.getElementById('calcModal').style.display='none'" style="margin-top:20px; width:100%; padding:12px; background:var(--neon); color:#000; border:none; font-weight:bold; border-radius:6px;">CLOSE</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-content">
+      <div class="contact-info">
+        For Any Issues on the Simulation<br>
+        Contact Us on WhatsApp: 0764738601
+      </div>
+      <div class="brand-info">
+        Built by Abthal Technologies<br>
+        Akkaraipattu, Ampara, Srilanka
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("oscCanvas"), ctx = canvas.getContext("2d");
+    const gCanvas = document.getElementById("graphCanvas"), gCtx = gCanvas.getContext("2d");
+    let running = false, anim, tableData = []; 
+
+    const clampY = 40; 
+    let currentY = 280, velocity = 0, eqPos = 280;
+
+    function resize() {
+      canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+      gCanvas.width = gCanvas.offsetWidth; gCanvas.height = gCanvas.offsetHeight;
+      updateEquilibrium();
+      if(tableData.length > 0) drawGraph();
+    }
+
+    function updateEquilibrium() {
+        const m = +document.getElementById("mass").value / 1000;
+        const k = +document.getElementById("kConst").value;
+        eqPos = 180 + ((m * 9.8 / k) * 200); 
+        if(!running) { currentY = eqPos; drawSetup(eqPos); }
+    }
+
+    function drawSetup(yEnd) {
+      ctx.clearRect(0,0,canvas.width, canvas.height);
+      const cx = canvas.width / 2;
+      const massHeight = 90;
+      const objectTopY = yEnd - massHeight;
+
+      ctx.strokeStyle = "#444"; ctx.lineWidth = 10;
+      ctx.beginPath(); ctx.moveTo(cx - 120, canvas.height); ctx.lineTo(cx - 120, 20); ctx.stroke();
+      ctx.strokeStyle = "#666"; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(cx - 120, clampY); ctx.lineTo(cx + 40, clampY); ctx.stroke();
+
+      ctx.strokeStyle = "#bbb"; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.moveTo(cx, clampY);
+      const coils = 60, springLen = objectTopY - clampY;
+      for(let i=0; i<=coils; i++) {
+        const y = clampY + (i/coils)*springLen;
+        const x = cx + (i % 2 === 0 ? 10 : -10); 
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = "#3b4d61"; ctx.fillRect(cx - 30, objectTopY, 60, massHeight);
+      ctx.strokeStyle = "#00f7ff"; ctx.lineWidth = 2; ctx.strokeRect(cx - 30, objectTopY, 60, massHeight);
+      
+      const eqTopY = eqPos - massHeight;
+      ctx.strokeStyle = "rgba(0, 247, 255, 0.4)"; ctx.setLineDash([10, 5]);
+      ctx.beginPath(); ctx.moveTo(cx - 110, eqTopY); ctx.lineTo(cx + 80, eqTopY); ctx.stroke();
+      ctx.setLineDash([]);
+      drawArrow(ctx, cx - 115, eqTopY, 'right', '#ffcc00');
+      drawArrow(ctx, cx - 45, objectTopY, 'left', '#ff00ff');
+    }
+
+    function drawArrow(c, x, y, dir, col) {
+        c.beginPath(); c.strokeStyle = col; c.lineWidth = 2;
+        let dx = (dir === 'right') ? -20 : 20, hx = (dir === 'right') ? -7 : 7;
+        c.moveTo(x + dx, y); c.lineTo(x, y);
+        c.lineTo(x + hx, y - 7); c.moveTo(x, y); c.lineTo(x + hx, y + 7);
+        c.stroke();
+    }
+
+    function startOscillation() {
+      if(running) return;
+      running = true;
+      currentY = eqPos + (+document.getElementById("amp").value);
+      velocity = 0; loop();
+    }
+
+    function loop() {
+      if(!running) return;
+      const dt = +document.getElementById("speedAdj").value, k = +document.getElementById("kConst").value, m = +document.getElementById("mass").value / 1000;
+      const displacement = currentY - eqPos;
+      velocity += (-k * (displacement / 150)) / m;
+      currentY += velocity * (dt * 80); 
+      drawSetup(currentY);
+      const T = 2 * Math.PI * Math.sqrt(m / k);
+      document.getElementById("hud").innerHTML = `m: ${m*1000}g | T: ${T.toFixed(3)}s`;
+      anim = requestAnimationFrame(loop);
+    }
+
+    function recordData() {
+      const mVal = +document.getElementById("mass").value, kVal = +document.getElementById("kConst").value;
+      const T = 2 * Math.PI * Math.sqrt((mVal/1000) / kVal);
+      if(!tableData.find(d => d.m === mVal)) {
+          tableData.push({m: mVal, T2: T*T});
+          document.getElementById("dataTableBody").innerHTML += `<tr><td>${mVal}</td><td>${(T*10).toFixed(2)}</td><td>${T.toFixed(3)}</td><td>${(T*T).toFixed(3)}</td></tr>`;
+      }
+      if(tableData.length >= 2) document.getElementById("calcBtn").style.display = "block";
+      
+      const wrapper = document.getElementById("graphWrapper");
+      wrapper.style.display = "block";
+      
+      // Crucial Fix: Ensure dimensions are mapped before drawing
+      gCanvas.width = gCanvas.offsetWidth;
+      gCanvas.height = gCanvas.offsetHeight;
+      
+      setTimeout(drawGraph, 60);
+    }
+
+    function drawGraph() {
+      gCtx.clearRect(0,0,gCanvas.width, gCanvas.height);
+      const pad = {l:50, r:20, t:20, b:40}, w = gCanvas.width - pad.l - pad.r, h = gCanvas.height - pad.t - pad.b;
+      
+      // Draw Grid
+      gCtx.strokeStyle = "#1a1a2e"; gCtx.lineWidth = 1;
+      for(let i=0; i<=10; i++) {
+        let lx = pad.l + i*(w/10); gCtx.beginPath(); gCtx.moveTo(lx, pad.t); gCtx.lineTo(lx, pad.t+h); gCtx.stroke();
+        let ly = pad.t + i*(h/10); gCtx.beginPath(); gCtx.moveTo(pad.l, ly); gCtx.lineTo(pad.l+w, ly); gCtx.stroke();
+      }
+
+      gCtx.strokeStyle = "#ffffff"; gCtx.lineWidth = 2;
+      gCtx.beginPath(); gCtx.moveTo(pad.l, pad.t); gCtx.lineTo(pad.l, pad.t + h); gCtx.lineTo(pad.l + w, pad.t + h); gCtx.stroke();
+
+      if(tableData.length < 1) return;
+      tableData.sort((a,b) => a.m - b.m);
+      const maxX = 550, maxY = 6.0;
+
+      tableData.forEach(pt => {
+        const gx = pad.l + (pt.m / maxX) * w, gy = pad.t + h - (pt.T2 / maxY) * h;
+        gCtx.fillStyle = "#ffcc00"; gCtx.beginPath(); gCtx.arc(gx, gy, 5, 0, 7); gCtx.fill();
+        gCtx.fillStyle = "#00f7ff"; gCtx.font = "bold 9px Arial";
+        gCtx.fillText(pt.m, gx - 10, pad.t + h + 15);
+        gCtx.fillText(pt.T2.toFixed(2), pad.l - 40, gy + 3);
+      });
+
+      if(tableData.length >= 2) {
+          const first = tableData[0], last = tableData[tableData.length-1];
+          const grad = (last.T2 - first.T2) / ((last.m - first.m)/1000);
+          document.getElementById("gradientLabel").innerText = `Gradient (M) = ${grad.toFixed(3)} s²/kg`;
+      }
+    }
+
+    function toggleGraph() {
+      const w = document.getElementById("graphWrapper");
+      w.style.display = (w.style.display === "none") ? "block" : "none";
+      if(w.style.display === "block") {
+          gCanvas.width = gCanvas.offsetWidth;
+          gCanvas.height = gCanvas.offsetHeight;
+          setTimeout(drawGraph, 60);
+      }
+    }
+
+    function showGradientCalc() {
+      const first = tableData[0], last = tableData[tableData.length-1];
+      const dm = (last.m - first.m) / 1000, dT2 = last.T2 - first.T2, M = dT2 / dm;
+      const kCalc = (4 * Math.PI**2) / M;
+      document.getElementById("calcLog").innerHTML = `
+        <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:5px; border-left:4px solid var(--gold);">
+        <b>Point A:</b> (${first.m}g, ${first.T2.toFixed(3)}s²)<br>
+        <b>Point B:</b> (${last.m}g, ${last.T2.toFixed(3)}s²)<br><br>
+        <b>Gradient M:</b> ${M.toFixed(4)} s²/kg<br>
+        <b>Spring Constant k:</b> ${kCalc.toFixed(2)} N/m</div>`;
+      document.getElementById("calcModal").style.display = "block";
+    }
+
+    function resetLab() {
+      running = false; cancelAnimationFrame(anim); tableData = []; 
+      document.getElementById("dataTableBody").innerHTML = "";
+      document.getElementById("graphWrapper").style.display = "none";
+      document.getElementById("calcBtn").style.display = "none";
+      updateEquilibrium();
+    }
+
+    document.getElementById('mass').oninput = function() { document.getElementById('massDisp').innerText = this.value; updateEquilibrium(); };
+    document.getElementById('kConst').oninput = function() { document.getElementById('kDisp').innerText = this.value; updateEquilibrium(); };
+    document.getElementById('amp').oninput = function() { document.getElementById('ampDisp').innerText = this.value; };
+
+    window.onload = resize;
+  </script>
+</body>
+</html>

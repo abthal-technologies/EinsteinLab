@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Unit-3 Waves and Oscillations</title>
+  <style>
+    :root { --neon: #00f7ff; --gold: #ffcc00; --bg: #05050a; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: #e0f7ff; font-family: 'Segoe UI', sans-serif; padding: 10px; padding-bottom: 120px; overflow-x: hidden; }
+    
+    header { text-align: center; margin-bottom: 10px; border-bottom: 1px solid var(--neon); }
+    header h1 { font-size: 1.1rem; color: #00ffcc; padding-bottom: 5px; }
+    header h2 { font-size: 0.8rem; color: var(--gold); font-weight: normal; margin-top: -5px; margin-bottom: 5px; }
+
+    .viewport { position: relative; width: 100%; height: 320px; background: #000; border: 2px solid #1a3a5a; border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+    #vibrationCanvas { width: 100%; height: 100%; }
+    
+    .hud { position: absolute; top: 10px; left: 10px; font-family: monospace; font-size: 0.75rem; color: var(--gold); pointer-events: none; background: rgba(0,0,0,0.85); padding: 8px; border-radius: 4px; border: 1px solid #333; line-height: 1.4; min-width: 200px; z-index: 10; }
+
+    .panel { background: #111827; border-radius: 10px; padding: 15px; border: 1px solid #374151; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    label { font-size: 0.7rem; color: #9ca3af; display: block; margin-bottom: 5px; }
+    input, select { width: 100%; background: #000; border: 1px solid #4b5563; color: #fff; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+    
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 15px; }
+    button { padding: 15px 5px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75rem; text-transform: uppercase; height: 50px; display: flex; align-items: center; justify-content: center; }
+    .bg-green { background: #10b981; color: #000; }
+    .bg-blue { background: #3b82f6; color: #fff; }
+    .bg-red { background: #ef4444; color: #fff; }
+
+    .footer { position: fixed; bottom: 0; left: 0; width: 100%; padding: 10px; background: rgba(5,5,10,0.98); border-top: 1px solid #1a3a5a; z-index: 1000; }
+    .footer-content { display: flex; justify-content: space-between; align-items: center; }
+    .contact-info { font-size: 0.75rem; color: #00ffcc; font-weight: bold; text-align: left; }
+    .brand-info { font-size: 0.6rem; color: rgba(255, 255, 255, 0.4); text-align: right; line-height: 1.2; }
+
+    #explainModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; padding: 20px; }
+    .modal-box { background: #1f2937; padding: 20px; border-radius: 12px; border: 1px solid var(--neon); max-height: 85vh; overflow-y: auto; }
+    .explain-section { margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+    .explain-section h3 { color: var(--neon); font-size: 0.95rem; margin-bottom: 8px; }
+    .explain-section p { font-size: 0.8rem; line-height: 1.5; color: #ccc; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Unit-3 Waves and Oscillations</h1>
+    <h2>Types of Vibration</h2>
+  </header>
+
+  <div class="viewport">
+    <canvas id="vibrationCanvas"></canvas>
+    <div id="hud" class="hud">STATUS: IDLE<br>MEDIUM: AIR<br>TYPE: N/A</div>
+  </div>
+
+  <div class="panel">
+    <div class="grid">
+      <div>
+        <label>Select Medium</label>
+        <select id="medium" onchange="updateMedium()">
+          <option value="air">Air (Low Resistance)</option>
+          <option value="water">Water (Fully Submerged)</option>
+        </select>
+      </div>
+      <div>
+        <label>Natural Freq (f₀): <b id="f0Disp">100</b> Hz</label>
+        <input type="range" id="natFreq" min="50" max="150" value="100">
+      </div>
+      <div style="grid-column: span 2;">
+        <label>Drive Freq (f): <b id="fDisp">0</b> Hz</label>
+        <input type="range" id="driveFreq" min="0" max="150" value="0">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button onclick="startSim()" class="bg-green" id="startBtn">START</button>
+      <button onclick="showExplain()" class="bg-blue">EXPLAIN</button>
+      <button onclick="resetSim()" class="bg-red">RESET</button>
+    </div>
+  </div>
+
+  <div id="explainModal">
+    <div class="modal-box">
+      <h2 style="color:var(--gold); margin-bottom:15px; border-bottom: 2px solid var(--gold);">Physics of Vibration</h2>
+      
+      <div class="explain-section">
+        <h3>1. Vibration in AIR (Light Damping)</h3>
+        <p>In air, the resistive forces (air friction) are negligible. This allows the system to build up massive energy during <b>Resonance</b>. If the Drive Frequency matches the Natural Frequency exactly ($f = f_0$), the amplitude increases until the glass exceeds its elastic limit and shatters.</p>
+      </div>
+
+      <div class="explain-section">
+        <h3>2. Vibration in WATER (Heavy Damping)</h3>
+        <p>When submerged in water, the high viscosity creates <b>Heavy Damping</b>. The resistive force $F = -bv$ converts mechanical energy into heat instantly. 
+        <br><b>Key Result:</b> The resonance curve becomes "Broad/Flat," and the amplitude is too small to shatter the glass.</p>
+      </div>
+
+      <div class="explain-section">
+        <h3>3. Natural Frequency Shift</h3>
+        <p>Notice that switching to water lowers the $f_0$. This is because the water surrounding the glass acts as "Added Mass." Since frequency is inversely proportional to the square root of mass ($f \propto 1/\sqrt{m}$), increasing mass decreases the natural frequency.</p>
+      </div>
+
+      <button onclick="document.getElementById('explainModal').style.display='none'" style="margin-top:10px; width:100%; padding:12px; background:var(--neon); color:#000; border:none; font-weight:bold; border-radius:6px;">CLOSE</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-content">
+      <div class="contact-info">For Any Issues on the Simulation<br>Contact Us on WhatsApp: 0764738601</div>
+      <div class="brand-info">Built by Abthal Technologies<br>Akkaraipattu, Ampara, Srilanka</div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("vibrationCanvas"), ctx = canvas.getContext("2d");
+    let t = 0, running = false, anim, amp = 0, shatter = false;
+    let baseF0 = 100;
+
+    function resize() {
+      canvas.width = canvas.offsetWidth; 
+      canvas.height = canvas.offsetHeight;
+      draw();
+    }
+
+    function updateMedium() {
+        const med = document.getElementById("medium").value;
+        const f0Slider = document.getElementById("natFreq");
+        if(med === "water") {
+            f0Slider.value = Math.round(baseF0 * 0.65); 
+        } else {
+            f0Slider.value = baseF0;
+        }
+        document.getElementById("f0Disp").innerText = f0Slider.value;
+        draw();
+    }
+
+    function draw() {
+      ctx.clearRect(0,0,canvas.width, canvas.height);
+      const cx = canvas.width/2, cy = canvas.height/2 + 40;
+      const med = document.getElementById("medium").value;
+      const f0 = parseInt(document.getElementById("natFreq").value);
+      const f = parseInt(document.getElementById("driveFreq").value);
+      
+      if(med === "water") {
+          ctx.fillStyle = "rgba(0, 120, 255, 0.25)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      let typeText = "";
+      if (f === 0) typeText = "NATURAL FREQUENCY";
+      else if (f === f0) {
+          typeText = (med === "water") ? "DAMPED RESONANCE" : "SHARP RESONANCE";
+          if (running && !shatter && med === "air") shatter = true;
+      } else {
+          typeText = (med === "water") ? "DAMPED FORCED VIBRATION" : "FORCED VIBRATION";
+      }
+
+      document.getElementById("hud").innerHTML = `STATUS: ${running ? 'RUNNING' : 'IDLE'}<br>MEDIUM: ${med.toUpperCase()}<br>TYPE: ${typeText}`;
+
+      if (shatter) {
+        ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.2;
+        for(let i=0; i<18; i++) {
+            ctx.beginPath();
+            let a = Math.random()*6.28; let d = Math.random()*85;
+            ctx.moveTo(cx, cy-50); ctx.lineTo(cx+Math.cos(a)*d, cy-50+Math.sin(a)*d); ctx.stroke();
+        }
+        ctx.fillStyle = "#ef4444"; ctx.textAlign = "center"; ctx.font = "bold 14px monospace";
+        ctx.fillText("SHATTERED!", cx, cy - 80);
+        return;
+      }
+
+      const damp = (med === "water") ? 0.2 : 1.0; 
+      const vibAmp = (f === f0) ? (25 * damp) : (2 * damp);
+      const vib = (running && f > 0) ? Math.sin(t * 0.8) * vibAmp : 0;
+      
+      ctx.strokeStyle = (f === f0 && running) ? "#ff3300" : "rgba(0, 247, 255, 0.8)";
+      ctx.lineWidth = 2.5;
+
+      // Glass Bowl
+      ctx.beginPath(); ctx.ellipse(cx, cy - 130, 55 + vib, 18 + (vib/3), 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - 55 - vib, cy - 130);
+      ctx.bezierCurveTo(cx - 60, cy - 20, cx + 60, cy - 20, cx + 55 + vib, cy - 130); ctx.stroke();
+      
+      // Stem & Base
+      ctx.beginPath(); ctx.moveTo(cx, cy - 38); ctx.lineTo(cx, cy + 45); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(cx, cy + 50, 48, 14, 0, 0, Math.PI * 2); ctx.stroke();
+
+      ctx.fillStyle = varColor('--gold'); ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+      ctx.fillText(`DRIVE: ${f}Hz | NATURAL: ${f0}Hz`, cx, cy + 85);
+    }
+
+    function startSim() {
+      if(shatter) return;
+      running = !running;
+      document.getElementById("startBtn").innerText = running ? "STOP" : "START";
+      if(running) loop();
+    }
+
+    function resetSim() {
+      running = false; shatter = false; t = 0;
+      document.getElementById("startBtn").innerText = "START";
+      document.getElementById("driveFreq").value = 0;
+      document.getElementById("fDisp").innerText = "0";
+      resize();
+    }
+
+    function loop() {
+      if(!running) return;
+      t += 1;
+      draw();
+      if(!shatter) anim = requestAnimationFrame(loop);
+    }
+
+    function showExplain() { document.getElementById("explainModal").style.display = "block"; }
+    function varColor(n) { return getComputedStyle(document.documentElement).getPropertyValue(n); }
+    
+    document.getElementById("natFreq").oninput = function() { 
+        baseF0 = parseInt(this.value); 
+        document.getElementById("f0Disp").innerText = this.value; 
+        draw(); 
+    };
+    document.getElementById("driveFreq").oninput = function() { document.getElementById("fDisp").innerText = this.value; draw(); };
+
+    window.onload = resize;
+  </script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Unit-2 Mechanics-Projectiles</title>
+  <style>
+    :root { --neon: #00f7ff; --gold: #ffcc00; --bg: #05050a; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: #e0f7ff; font-family: 'Segoe UI', sans-serif; padding: 10px; padding-bottom: 120px; overflow-x: hidden; }
+    
+    header { text-align: center; margin-bottom: 10px; border-bottom: 1px solid var(--neon); }
+    header h1 { font-size: 1.1rem; color: #00ffcc; padding-bottom: 5px; }
+
+    .viewport { position: relative; width: 100%; height: 260px; background: #000; border: 2px solid #1a3a5a; border-radius: 8px; margin-bottom: 5px; }
+    #motionCanvas { width: 100%; height: 100%; }
+    
+    #graphWrapper { display: none; width: 100%; height: 220px; background: #080810; border: 1px solid #333; border-radius: 8px; margin-bottom: 10px; padding: 5px; }
+    #graphCanvas { width: 100%; height: 100%; }
+
+    .hud { position: absolute; top: 8px; left: 8px; font-family: monospace; font-size: 0.7rem; color: var(--gold); pointer-events: none; background: rgba(0,0,0,0.6); padding: 4px; border-radius: 4px; border: 0.5px solid #333; }
+
+    .panel { background: #111827; border-radius: 10px; padding: 12px; border: 1px solid #374151; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    label { font-size: 0.65rem; color: #9ca3af; }
+    input, select { width: 100%; background: #000; border: 1px solid #4b5563; color: #fff; padding: 5px; border-radius: 4px; font-size: 0.75rem; }
+    
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-top: 10px; }
+    button { padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.7rem; text-transform: uppercase; }
+    .bg-green { background: #10b981; color: #000; }
+    .bg-blue { background: #3b82f6; color: #fff; }
+    .bg-red { background: #ef4444; color: #fff; }
+    .bg-slow { background: #8b5cf6; color: #fff; }
+
+    /* Standardized Footer */
+    .footer { position: fixed; bottom: 0; left: 0; width: 100%; padding: 10px; background: rgba(5,5,10,0.98); border-top: 1px solid #1a3a5a; z-index: 1000; }
+    .footer-content { display: flex; justify-content: space-between; align-items: center; }
+    .contact-info { font-size: 0.75rem; color: #00ffcc; font-weight: bold; text-align: left; }
+    .brand-info { font-size: 0.6rem; color: rgba(255, 255, 255, 0.4); text-align: right; line-height: 1.2; }
+
+    #calcModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; padding: 20px; }
+    .modal-box { background: #1f2937; padding: 20px; border-radius: 12px; border: 1px solid var(--neon); max-height: 85vh; overflow-y: auto; }
+    .step-box { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin: 10px 0; border-left: 3px solid var(--neon); font-family: monospace; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+
+  <header><h1>Unit-2 Mechanics-Projectiles</h1></header>
+
+  <div class="viewport">
+    <canvas id="motionCanvas"></canvas>
+    <div id="hud" class="hud">READY</div>
+  </div>
+
+  <div id="graphWrapper">
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 5px;">
+        <select id="graphType" onchange="drawGraph()" style="width:100px;">
+            <option value="y-t">y - t</option>
+            <option value="vy-t">vy - t</option>
+            <option value="vx-t">vx - t</option>
+        </select>
+    </div>
+    <canvas id="graphCanvas"></canvas>
+  </div>
+
+  <div class="panel">
+    <div class="grid">
+      <div><label>Height: <b id="hDisp">0</b>m</label><input type="range" id="height" min="0" max="40" value="0"></div>
+      <div><label>Angle: <b id="aDisp">45</b>°</label><input type="range" id="angle" min="0" max="90" value="45"></div>
+      <div><label>Speed: <b id="sDisp">20</b>m/s</label><input type="range" id="speed" min="5" max="50" value="20"></div>
+      <div><label>Gravity: <b id="gDisp">10</b></label><input type="range" id="gravity" min="0" max="20" value="10" step="0.5"></div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <label><input type="checkbox" id="spaceMode"> Space</label>
+        <label><input type="checkbox" id="airDrag"> Air Drag</label>
+      </div>
+      <div>
+        <select id="objType">
+          <option value="ball">Ball</option>
+          <option value="rocket">Rocket</option>
+          <option value="stone">Stone</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button onclick="start(false)" class="bg-green">LAUNCH</button>
+      <button onclick="start(true)" class="bg-slow">SLOW MO</button>
+      <button onclick="toggleGraph()" class="bg-blue">GRAPH</button>
+      <button onclick="reset()" class="bg-red">RESET</button>
+    </div>
+    <button onclick="showCalc()" style="width:100%; margin-top:8px; background:#444; color:#fff;">CALCULATION STEPS</button>
+  </div>
+
+  <div id="calcModal"><div class="modal-box"><h2 style="color:var(--gold)">Physics Calculation Breakdown</h2><div id="calcLog"></div><button onclick="document.getElementById('calcModal').style.display='none'" style="margin-top:20px; width:100%; padding:12px; background:var(--neon); color:#000; border:none; font-weight:bold; border-radius:6px;">CLOSE</button></div></div>
+
+  <div class="footer">
+    <div class="footer-content">
+      <div class="contact-info">For Any Issues on the Simulation<br>Contact Us on WhatsApp: 0764738601</div>
+      <div class="brand-info">Built by Abthal Technologies<br>Akkaraipattu, Ampara, Srilanka</div>
+    </div>
+  </div>
+
+  <script>
+    const mCanvas = document.getElementById("motionCanvas"), gCanvas = document.getElementById("graphCanvas");
+    const mCtx = mCanvas.getContext("2d"), gCtx = gCanvas.getContext("2d");
+    let traj = [], t = 0, running = false, anim, slowMode = false;
+    let maxH = 0, tMaxH = 0, range = 0;
+    let initialU, initialTheta, initialG, initialH;
+
+    function resize() {
+      mCanvas.width = mCanvas.offsetWidth; mCanvas.height = mCanvas.offsetHeight;
+      gCanvas.width = gCanvas.offsetWidth; gCanvas.height = gCanvas.offsetHeight;
+      drawStatic();
+    }
+
+    function drawStatic() {
+        mCtx.clearRect(0,0,mCanvas.width, mCanvas.height);
+        mCtx.strokeStyle = "#00ffcc";
+        mCtx.lineWidth = 2;
+        mCtx.beginPath(); mCtx.moveTo(0, mCanvas.height-30); mCtx.lineTo(mCanvas.width, mCanvas.height-30); mCtx.stroke();
+    }
+
+    function toggleGraph() {
+        const w = document.getElementById("graphWrapper");
+        w.style.display = (w.style.display === "none" || w.style.display === "") ? "block" : "none";
+        if(w.style.display === "block") drawGraph();
+    }
+
+    function start(slow) {
+      reset();
+      initialU = +document.getElementById("speed").value;
+      initialTheta = +document.getElementById("angle").value;
+      initialH = +document.getElementById("height").value;
+      initialG = document.getElementById("spaceMode").checked ? 0 : +document.getElementById("gravity").value;
+      slowMode = slow; 
+      running = true; 
+      loop();
+    }
+
+    function reset() {
+      running = false; cancelAnimationFrame(anim);
+      traj = []; t = 0; maxH = 0; tMaxH = 0; range = 0;
+      resize();
+      document.getElementById("hud").innerText = "READY";
+    }
+
+    function loop() {
+      if(!running) return;
+      const drag = document.getElementById("airDrag").checked ? 0.06 : 0;
+      const rad = initialTheta * Math.PI / 180;
+      
+      let last = traj.length > 0 ? traj[traj.length-1] : {vx: initialU*Math.cos(rad), vy: initialU*Math.sin(rad), x:0, y:initialH};
+      let ax = -drag * last.vx, ay = -initialG - (drag * last.vy);
+      let dt = slowMode ? 0.01 : 0.03; 
+      
+      let vx = last.vx + ax * dt, vy = last.vy + ay * dt;
+      let x = last.x + vx * dt, y = last.y + vy * dt;
+
+      if(y > maxH) { 
+          maxH = y; 
+          tMaxH = t; 
+      }
+
+      const scale = Math.min(mCanvas.width/(initialU*5 + 20), 5);
+      const cx = x * scale, cy = (mCanvas.height-30) - (y * scale);
+
+      if (y < 0) {
+          let fraction = last.y / (last.y - y);
+          t += dt * fraction;
+          x = last.x + vx * (dt * fraction);
+          y = 0;
+          vy = last.vy + ay * (dt * fraction);
+          traj.push({t, x, y, vx, vy, cx: x * scale, cy: (mCanvas.height-30)});
+          running = false; 
+          range = x; 
+          render(); 
+          return; 
+      }
+
+      traj.push({t, x, y, vx, vy, cx, cy});
+      document.getElementById("hud").innerHTML = `T:${t.toFixed(2)}s | Y:${y.toFixed(2)}m<br>Vx:${vx.toFixed(2)} | Vy:${vy.toFixed(2)}<br>Peak Time:${tMaxH.toFixed(2)}s`;
+      render();
+      t += dt;
+      anim = requestAnimationFrame(loop);
+    }
+
+    function render() {
+      drawStatic();
+      const last = traj[traj.length-1];
+      mCtx.lineWidth = 1.5;
+      mCtx.strokeStyle = "#ff00ff"; mCtx.beginPath(); mCtx.moveTo(last.cx, last.cy); mCtx.lineTo(last.cx, last.cy - last.vy*2); mCtx.stroke();
+      mCtx.strokeStyle = "#ffff00"; mCtx.beginPath(); mCtx.moveTo(last.cx, last.cy); mCtx.lineTo(last.cx + last.vx*2, last.cy); mCtx.stroke();
+      
+      mCtx.strokeStyle = "rgba(0, 247, 255, 0.4)"; mCtx.setLineDash([3,3]);
+      mCtx.beginPath(); traj.forEach((p, i) => i==0 ? mCtx.moveTo(p.cx, p.cy) : mCtx.lineTo(p.cx, p.cy)); mCtx.stroke();
+      mCtx.setLineDash([]);
+
+      const type = document.getElementById("objType").value;
+      mCtx.save(); mCtx.translate(last.cx, last.cy);
+      mCtx.fillStyle = (type === 'rocket') ? "#ff3300" : (type === 'stone' ? "#888" : "#00ffcc");
+      if(type === 'rocket') {
+          mCtx.rotate(Math.atan2(-last.vy, last.vx) + Math.PI/2);
+          mCtx.beginPath(); mCtx.moveTo(0,-8); mCtx.lineTo(5,8); mCtx.lineTo(-5,8); mCtx.fill();
+      } else if(type === 'stone') { mCtx.fillRect(-5,-5,10,10); } 
+      else { mCtx.beginPath(); mCtx.arc(0,0,6,0,7); mCtx.fill(); mCtx.strokeStyle="#fff"; mCtx.stroke(); }
+      mCtx.restore();
+
+      if(!running && traj.length > 0) {
+          mCtx.fillStyle = "#fff"; mCtx.font = "10px Arial";
+          mCtx.fillText(`Range: ${range.toFixed(2)}m`, last.cx - 20, mCanvas.height-10);
+          
+          const maxP = traj.find(p => Math.abs(p.y - maxH) < 0.001) || last;
+          mCtx.fillStyle = varColor('--gold');
+          mCtx.beginPath(); mCtx.arc(maxP.cx, maxP.cy, 3, 0, 7); mCtx.fill();
+          mCtx.fillText(`H_max: ${maxH.toFixed(2)}m @ ${tMaxH.toFixed(2)}s`, maxP.cx - 40, maxP.cy - 12);
+      }
+      if(document.getElementById("graphWrapper").style.display === "block") drawGraph();
+    }
+
+    function drawGraph() {
+      gCtx.clearRect(0,0,gCanvas.width, gCanvas.height);
+      const pad = {l:45, r:20, t:20, b:35}, type = document.getElementById("graphType").value;
+      const w = gCanvas.width - pad.l - pad.r, h = gCanvas.height - pad.t - pad.b;
+      
+      gCtx.strokeStyle = "#1a1a2e"; gCtx.lineWidth = 1;
+      for(let x=0; x<=10; x++) { let lx = pad.l + x*(w/10); gCtx.beginPath(); gCtx.moveTo(lx, pad.t); gCtx.lineTo(lx, pad.t+h); gCtx.stroke(); }
+      for(let y=0; y<=10; y++) { let ly = pad.t + y*(h/10); gCtx.beginPath(); gCtx.moveTo(pad.l, ly); gCtx.lineTo(pad.l+w, ly); gCtx.stroke(); }
+
+      if(traj.length < 2) return;
+      const tEnd = traj[traj.length-1].t;
+      let vals = traj.map(p => type === 'y-t' ? p.y : (type === 'vy-t' ? p.vy : p.vx));
+      let vMax = Math.max(...vals, 0.1), vMin = Math.min(...vals, 0);
+      if(vMax === vMin) vMax += 1;
+      let vRange = vMax - vMin;
+
+      const getX = (tv) => pad.l + (tv/tEnd)*w;
+      const getY = (vv) => pad.t + h - ((vv-vMin)/vRange)*h;
+
+      gCtx.strokeStyle = "#fff"; gCtx.lineWidth = 2;
+      gCtx.beginPath(); gCtx.moveTo(pad.l, pad.t); gCtx.lineTo(pad.l, pad.t+h); gCtx.lineTo(pad.l+w, pad.t+h); gCtx.stroke();
+      
+      gCtx.strokeStyle = "rgba(255,255,255,0.4)"; gCtx.setLineDash([4,4]);
+      gCtx.beginPath(); gCtx.moveTo(pad.l, getY(0)); gCtx.lineTo(pad.l+w, getY(0)); gCtx.stroke(); gCtx.setLineDash([]);
+
+      gCtx.fillStyle = "#fff"; gCtx.font = "10px Arial";
+      gCtx.fillText(vMax.toFixed(1), 5, pad.t+5);
+      gCtx.fillText(vMin.toFixed(1), 5, pad.t+h);
+      gCtx.fillText(tEnd.toFixed(1)+"s", pad.l+w-20, pad.t+h+15);
+
+      gCtx.strokeStyle = varColor('--neon'); gCtx.lineWidth = 2;
+      gCtx.beginPath(); traj.forEach((p, i) => {
+          let v = type === 'y-t' ? p.y : (type === 'vy-t' ? p.vy : p.vx);
+          if(i===0) gCtx.moveTo(getX(p.t), getY(v)); else gCtx.lineTo(getX(p.t), getY(v));
+      }); gCtx.stroke();
+    }
+
+    function showCalc() {
+      if(traj.length === 0) return;
+      const last = traj[traj.length-1];
+      const rad = initialTheta * Math.PI/180;
+      const uy = initialU * Math.sin(rad);
+      const ux = initialU * Math.cos(rad);
+      const dragOn = document.getElementById("airDrag").checked;
+
+      let logHTML = `
+        <div class="step-box">
+          <b>Step 1: Vertical Component</b><br>
+          uᵧ = u · sin(θ) = ${initialU} · sin(${initialTheta}°)<br>
+          <b>uᵧ = ${uy.toFixed(3)} m/s</b>
+        </div>
+        <div class="step-box">
+          <b>Step 2: Horizontal Component</b><br>
+          uₓ = u · cos(θ) = ${initialU} · cos(${initialTheta}°)<br>
+          <b>uₓ = ${ux.toFixed(3)} m/s</b>
+        </div>`;
+
+      if(!dragOn && initialH === 0) {
+        logHTML += `
+          <div class="step-box">
+            <b>Step 3: Symmetry & Peak Time</b><br>
+            Time to Peak (t_peak) = uᵧ / g = ${uy.toFixed(3)} / ${initialG}<br>
+            <b>t_peak = ${(uy/initialG).toFixed(3)} s</b>
+          </div>`;
+      } else {
+        logHTML += `
+          <div class="step-box">
+            <b>Step 3: Energy Check</b><br>
+            Final vᵧ = -√(${uy.toFixed(2)}² + 2(-${initialG})(-${initialH}))<br>
+            <b>Expected vᵧ: ${(-Math.sqrt(uy*uy + 2*initialG*initialH)).toFixed(3)} m/s</b>
+          </div>`;
+      }
+
+      document.getElementById("calcLog").innerHTML = logHTML;
+      document.getElementById("calcModal").style.display = "block";
+    }
+
+    function varColor(n) { return getComputedStyle(document.documentElement).getPropertyValue(n); }
+    ['height','angle','speed','gravity'].forEach(id => document.getElementById(id).oninput = function() { document.getElementById(id[0]+'Disp').innerText = this.value; });
+    window.onload = resize;
+    window.onresize = resize;
+  </script>
+</body>
+</html>
